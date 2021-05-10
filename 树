@@ -1,0 +1,182 @@
+二叉树的相关定义如下：
+
+typedef int DataType;
+
+typedef struct Node{
+    DataType data;
+    struct Node* left;
+    struct Node* right;
+}BiTNode, *BiTree;
+遍历所使用栈的相关操作如下：
+
+#define Stack_Size 50
+typedef BiTNode* ElemType;
+typedef struct{
+    ElemType elem[Stack_Size];
+    int top;
+}Stack;
+
+void init_stack(Stack *S); // 初始化栈
+bool push(Stack* S, ElemType x); //x 入栈
+bool pop(Stack* S, ElemType *px); //出栈，元素保存到px所指的单元，函数返回true,栈为空时返回 false
+bool top(Stack* S, ElemType *px); //获取栈顶元素，将其保存到px所指的单元，函数返回true，栈满时返回 false
+bool is_empty(Stack* S);  // 栈为空时返回 true，否则返回 false
+
+1.已知二叉树按照二叉链表方式存储，利用栈的基本操作写出先序遍历非递归形式的算法：
+
+void pre_order(BiTree root);
+在遍历过程中，pre_order函数需要调用 visit_node 函数来实现对结点的访问，该函数声明如下：
+
+void visit_node(BiTNode *node);
+
+#include "bitree.h" //请不要删除，否则检查不通过
+#include <stdio.h>
+#include <stdlib.h>
+
+void pre_order(BiTree root)
+{
+    BiTree p;
+    Stack S;
+    init_stack(&S);
+    p = root;
+    while (!is_empty(&S) || p != NULL) {
+        while (p != NULL) {
+            visit_node(p);
+            push(&S, p);
+            p = p->left;
+        }
+        if (!is_empty(&S)) {
+            pop(&S, &p);
+            p = p->right;
+        }
+    }
+}
+
+
+2.假设二叉树采用二叉链表方式存储， root指向根结点，node 指向二叉树中的一个结点，编写函数 path，计算root到 node 之间的路径，（该路径包括root结点和 node 结点）。path 函数声明如下：
+
+bool path(BiTNode* root, BiTNode* node, Stack* s);
+其中，root指向二叉树的根结点，node指向二叉树中的另一结点，s 为已经初始化好的栈，该栈用来保存函数所计算的路径，如正确找出路径，则函数返回 true，此时root在栈底，node在栈顶；如未找到，则函数返回 false
+
+bool path(BiTNode* root, BiTNode* node, Stack* s)
+{
+    BiTree T = root, p = NULL;
+    if (T == NULL || node == NULL || !is_empty(s))
+        return false;
+    while (T || !is_empty(s)) {
+        while (T) {
+            push(s, T);
+            if (T == node)
+                return true;
+            T = T->left;
+        }
+        top(s, &T);
+        if (!T->right || T->right == p)//防止重复查找 {
+            p = T;
+            pop(s, &T);
+            T = NULL;
+        } else
+            T = T->right;
+    }
+    return false;
+}
+
+3.设二叉树采用二叉链表方式存储， root指向根结点，p所指结点和q所指结点为二叉树中的两个结点，编写一个计算它们的最近的共同祖先，函数定义如下：
+
+BiTNode * nearest_ancestor(BiTree root, BiTNode *p, BiTNode *q);
+其中 root 指向二叉树的根结点，p 和 q 分别指向二叉树中的两个结点。
+
+BiTNode* nearest_ancestor(BiTree root, BiTNode* p, BiTNode* q)
+{
+
+    int num1 = 0, num2 = 0;
+    Stack s1, s2;
+    BiTNode *Node1[100], *Node2[100];
+    init_stack(&s1); //初始化栈
+    init_stack(&s2);
+
+    path(root, p, &s1); //找到两个栈的路径
+    path(root, q, &s2);
+
+    while (!is_empty(&s1)) //弹出元素，由于是先序遍历，最开始可能是不同的元素。保存到Node中，同时总数加一
+        pop(&s1, &Node1[num1++]);
+    while (!is_empty(&s2))
+        pop(&s2, &Node2[num2++]);
+
+    for (int i = 0; i < num1; ++i) { //找两个路径相同之处
+        for (int j = 0; j < num2; ++j) {
+            if (Node1[i] == Node2[j]) {
+                return Node1[i]; //找到则返回，后面都是相同的
+            }
+        }
+    }
+}
+
+4.使用队列，编写transfrom函数，将普通树转换成对应的二叉树。
+普通树节点的定义如下：
+
+#define MAX_CHILDREN_NUM 5
+struct _CSNode
+{
+    DataType data;
+    struct _CSNode *children[MAX_CHILDREN_NUM];
+};
+typedef struct _CSNode CSNode;
+其中，子树的根节点的指针存放在children数组的前k个元素中，即如果children[i]的值为NULL，而children[i-1]不为NULL，则表明该结点只有i棵子树，子树根结点分别保存在children[0]至children[i-1]中。
+
+队列相关定义及操作如下：
+
+struct __Queue
+{
+    int i, j; //指向数组内元素的游标
+    void **array;
+};
+typedef struct __Queue Queue
+
+BiTNode* transform(CSNode* root)
+{
+    if (root == NULL)
+        return NULL;
+
+    //初始化根节点
+    BiTree broot = (BiTree)malloc(sizeof(struct Node));
+    broot->data = root->data;
+    broot->left = broot->right = NULL;
+
+    //普通树、二叉树初始化、加入队列
+    Queue* queue = create_queue();
+    Queue* bqueue = create_queue();
+    add_queue(queue, root);
+    add_queue(bqueue, broot);
+
+    //当普通树的队列不为空时
+    while (!is_empty_queue(queue)) {
+        //从两个队列中分别取出一个结点
+        CSNode* node = del_queue(queue);
+        BiTree bTreeNode = del_queue(bqueue);
+
+        int i;
+        BiTree former = NULL;
+        //遍历普通树结点的所有孩子结点，将孩子加入队列
+        for (i = 0; i < MAX_CHILDREN_NUM; i++) {
+            if (node->children[i]) {
+                BiTree bnode = (BiTree)malloc(sizeof(struct Node));
+                bnode->left = bnode->right = NULL;
+                bnode->data = node->children[i]->data;
+                if (i == 0) //普通树的第一个孩子作为二叉树的左孩子
+                    bTreeNode->left = bnode;
+                else //后面的孩子结点作为前面结点的右孩子
+                    former->right = bnode;
+                former = bnode;
+
+                add_queue(queue, node->children[i]);
+                add_queue(bqueue, bnode);
+            }
+        }
+    }
+    free(queue->array);
+    free(queue);
+    free(bqueue->array);
+    free(bqueue);
+    return broot;
+}
